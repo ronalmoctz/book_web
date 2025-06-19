@@ -82,15 +82,10 @@ export const InsertBook: React.FC = () => {
   ) => {
     const target = e.target as HTMLInputElement | HTMLSelectElement;
     const { name, value, type } = target;
-    const checked = (target as HTMLInputElement).checked;
+
     setForm((f) => ({
       ...f,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : type === "number"
-          ? Number(value)
-          : value,
+      [name]: type === "number" ? Number(value) : value,
     }));
   };
 
@@ -216,18 +211,42 @@ export const InsertBook: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="flex items-center space-x-2 mt-2">
-              <input
-                id="is_best_seller"
-                name="is_best_seller"
-                type="checkbox"
-                onChange={handleChange}
-                onBlur={() =>
-                  setTouched((t) => ({ ...t, is_best_seller: true }))
-                }
-                required
-              />
+
+            <div className="flex flex-col space-y-2">
               <Label htmlFor="is_best_seller">Best Seller</Label>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({
+                      ...f,
+                      is_best_seller: !f.is_best_seller,
+                    }));
+                  }}
+                  onBlur={() =>
+                    setTouched((t) => ({ ...t, is_best_seller: true }))
+                  }
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    form.is_best_seller ? "bg-blue-600" : "bg-gray-200"
+                  }`}
+                  aria-pressed={form.is_best_seller}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                      form.is_best_seller ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+                <span
+                  className={`text-sm ${
+                    form.is_best_seller
+                      ? "text-blue-600 font-medium"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {form.is_best_seller ? "Sí" : "No"}
+                </span>
+              </div>
               {getError("is_best_seller") && (
                 <span className="text-red-600 text-sm">
                   {getError("is_best_seller")}
@@ -246,6 +265,36 @@ export const InsertBook: React.FC = () => {
               onBlur={() => setTouched((t) => ({ ...t, cover: true }))}
               required
             />
+
+            {/* Preview de la imagen */}
+            {coverFile && (
+              <div className="mt-3">
+                <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
+                <div className="relative inline-block">
+                  <img
+                    src={URL.createObjectURL(coverFile)}
+                    alt="Preview de portada"
+                    className="max-w-xs max-h-48 object-contain border rounded-lg shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCoverFile(null);
+                      // Limpiar el input file
+                      const fileInput = document.getElementById(
+                        "cover"
+                      ) as HTMLInputElement;
+                      if (fileInput) fileInput.value = "";
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    title="Eliminar imagen"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
             {touched.cover && !coverFile && (
               <span className="text-red-600 text-sm">
                 * Este campo es obligatorio

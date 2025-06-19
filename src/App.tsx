@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useFetch } from "./hooks/useFetch";
 import type { Book } from "./types/book";
+import type { Author } from "./types/author";
 import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
 import { Button } from "./components/ui/button";
 import { Link } from "react-router-dom";
@@ -10,6 +11,17 @@ export default function BookList() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data = [], loading, error } = useFetch<Book[]>("/books", []);
+  const {
+    data: authors = [],
+    loading: la,
+    error: ea,
+  } = useFetch<Author[]>("/authors", []);
+
+  const authorMap = useMemo(() => {
+    const m = new Map<number, string>();
+    (authors ?? []).forEach((a) => m.set(a.id, `${a.name} ${a.last_name}`));
+    return m;
+  }, [authors]);
 
   const filteredBooks = useMemo(() => {
     if (!searchTerm.trim()) return data;
@@ -18,10 +30,17 @@ export default function BookList() {
     );
   }, [data, searchTerm]);
 
-  if (loading) return <p className="text-center mt-10">Cargando libros...</p>;
+  if (loading || la)
+    return <p className="text-center mt-10">Cargando libros...</p>;
   if (error)
     return (
       <p className="text-center mt-10 text-red-500">Error: {error.message}</p>
+    );
+  if (ea)
+    return (
+      <p className="text-center mt-10 text-red-500">
+        Error autores: {ea.message}
+      </p>
     );
 
   return (
@@ -44,12 +63,21 @@ export default function BookList() {
               <img
                 src={book.cover}
                 alt={book.title}
-                className="w-32 h-44 object-cover mb-4"
+                className="w-60 h-80 object-cover mb-4 rounded-sm "
               />
               <div className="w-full space-y-2 text-left">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 mt-1"></span>
                   <h3 className="text-xl font-semibold">{book.title}</h3>
+                  {book.is_best_seller && (
+                    <span className="text-xs text-green-500 font-bold">
+                      Best Seller ⭐
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <span>•</span>
+                  <p>{authorMap.get(book.author_id) ?? "Autor desconocido"}</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <span>•</span>
