@@ -10,7 +10,7 @@ export function useFetch<T = unknown>(path: string, deps: any[] = []): {
     const [data, setData] = useState<T | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
-    const controllerRef = useRef<AbortController>();
+    const controllerRef = useRef<AbortController | null>(null);
 
     const fetchData = async () => {
         const controller = new AbortController();
