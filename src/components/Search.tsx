@@ -45,30 +45,43 @@ export function BookSearch({ books, onSearchChange }: BookSearchProps) {
   return (
     <>
       <div
-        className="flex items-center gap-2 rounded-sm raduis px-3 py-2 bg-white shadow cursor-pointer w-full max-w-xs"
+        className="flex items-center gap-2 rounded-md px-4 py-2 bg-white border-2 border-[#293241] shadow-md cursor-pointer w-full max-w-xs hover:shadow-lg transition-shadow"
         onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
         tabIndex={0}
         role="button"
-        aria-label="Buscar libro"
+        aria-label="Abrir búsqueda de libros. Presiona Ctrl+K como atajo"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
-        <SearchIcon className="w-4 h-4 text-gray-500" />
-        <span className="text-gray-500 text-sm flex-1 text-left select-none">
+        <SearchIcon className="w-4 h-4 text-[#293241]" aria-hidden="true" />
+        <span className="text-[#293241]/70 text-sm flex-1 text-left select-none">
           Presiona{" "}
-          <kbd className="bg-gray-100 px-1 rounded border text-xs">
+          <kbd className="bg-[#FFD9A0] px-1.5 py-0.5 rounded border border-[#293241] text-xs font-semibold">
             Ctrl + K
           </kbd>{" "}
           para buscar
         </span>
       </div>
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog 
+        open={open} 
+        onOpenChange={setOpen}
+        aria-label="Buscar libros"
+      >
         <CommandInput
           placeholder="Buscar libro por título..."
           value={search}
           onValueChange={setSearch}
+          aria-label="Escribe el título del libro que buscas"
         />
-        <CommandList>
-          <CommandEmpty>No hay resultados.</CommandEmpty>
-          <CommandGroup heading="Libros">
+        <CommandList aria-label="Resultados de búsqueda">
+          <CommandEmpty role="status" aria-live="polite">No hay resultados.</CommandEmpty>
+          <CommandGroup heading="Libros" aria-label="Lista de libros encontrados">
             {filteredBooks.map((book) => (
               <CommandItem
                 key={book.id}

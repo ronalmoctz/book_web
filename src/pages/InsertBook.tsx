@@ -1,486 +1,385 @@
 import React, { useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-} from "@/components/ui/select";
-import { useFetch } from "@/hooks/useFetch";
+import { FormField } from "@/components/ui/FormField";
+import { SelectField } from "@/components/ui/SelectField";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { FileUpload } from "@/components/ui/FileUpload";
+import { useBookFormData } from "@/hooks/useBooks";
 import { usePost } from "@/hooks/usePost";
+import { useBookForm } from "@/hooks/useBookForm";
 import type { Book } from "@/types/book";
 import { Link } from "react-router-dom";
 
-// Tipos para selects
-interface Author {
-  id: number;
-  name: string;
-  last_name: string;
-}
-interface Genre {
-  id: number;
-  name: string;
-}
-interface Publisher {
-  id: number;
-  name: string;
-}
-
-type BookForm = Omit<Book, "id" | "create_at" | "update_at">;
-
 export const InsertBook: React.FC = () => {
-  const [form, setForm] = useState<BookForm>({
-    title: "",
-    description: "",
-    price: 0,
-    discount: 0,
-    rating: 0,
-    is_best_seller: false,
-    year: new Date().getFullYear(),
-    edition: "",
-    stock: 0,
-    sales: 0,
-    isbn: "",
-    author_id: 0,
-    genre_id: 0,
-    publisher_id: 0,
-    cover: "",
-  });
+  const { 
+    form, 
+    setFieldValue, 
+    handleChange, 
+    handleBlur, 
+    getError, 
+    validateAll,
+    resetForm 
+  } = useBookForm();
+  
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Validación de campos vacíos individuales
-  const [touched, setTouched] = useState<{ [K in keyof BookForm]?: boolean }>(
-    {}
-  );
-  const getError = (key: keyof BookForm) => {
-    if (!touched[key]) return "";
-    const value = form[key];
-    if (typeof value === "string" && value.trim() === "")
-      return "* Este campo es obligatorio";
-    if (typeof value === "number" && value === 0)
-      return "* Este campo es obligatorio";
-    return "";
-  };
-
-  // Fetch dinámico para selects
-  const { data: authors, loading: loadingAuthors } =
-    useFetch<Author[]>("/authors");
-  const { data: genres, loading: loadingGenres } = useFetch<Genre[]>("/genres");
-  const { data: publishers, loading: loadingPublishers } =
-    useFetch<Publisher[]>("/publishers");
-
-  const { post, loading: posting, error } = usePost<Book>("/books");
-
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const target = e.target as HTMLInputElement | HTMLSelectElement;
-    const { name, value, type } = target;
-
-    setForm((f) => ({
-      ...f,
-      [name]: type === "number" ? Number(value) : value,
-    }));
-  };
-
-  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) setCoverFile(e.target.files[0]);
-  };
-
-  // Validación de campos vacíos
-  const isEmpty = Object.entries(form).some(
-    ([key, value]) =>
-      key !== "cover" && // cover se valida aparte
-      (typeof value === "string" ? value.trim() === "" : value === 0)
-  );
+  const { authors, genres, publishers, loading, error: loadError } = useBookFormData();
+  const { post, loading: posting } = usePost<Book>("/books");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!coverFile) return alert("Selecciona una portada");
-    if (isEmpty) return alert("Todos los campos son obligatorios");
+    setSubmitError(null);
+    setSubmitSuccess(false);
+
+    if (!validateAll()) {
+      setSubmitError("Por favor corrige los errores en el formulario");
+      return;
+    }
+
+    if (!coverFile) {
+      setSubmitError("Selecciona una portada para el libro");
+      return;
+    }
+    
     const data = new FormData();
     data.append("cover", coverFile);
     data.append("payload", JSON.stringify(form));
+    
     try {
       await post(data);
-      alert("Libro creado!");
-    } catch {
-      alert("Error al crear libro");
+      setSubmitSuccess(true);
+      resetForm();
+      setCoverFile(null);
+      setTimeout(() => setSubmitSuccess(false), 5000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Error al crear el libro");
     }
   };
 
-  if (loadingAuthors || loadingGenres || loadingPublishers)
-    return <p>Cargando...</p>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FFF8ED] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-[#EE6C4D] border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-[#293241] text-lg">Cargando datos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#FFF8ED] flex items-center justify-center">
+        <div className="text-center p-8 bg-red-100 rounded-lg border-2 border-red-500">
+          <p className="text-red-600 text-lg">Error al cargar datos: {loadError.message}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 bg-[#EE6C4D] text-white"
+          >
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-10">
-      <Link to="/" className="absolute left-4 top-4 ">
-        <Button className="cursor-pointer">Volver</Button>
+    <div className="min-h-screen bg-[#FFF8ED] p-4 md:p-8">
+      {/* Botón Volver */}
+      <Link to="/" className="fixed left-4 top-4 z-10">
+        <Button className="bg-[#EE6C4D] hover:bg-[#d95b3d] text-white border-2 border-[#293241] shadow-lg">
+          ← Volver
+        </Button>
       </Link>
-      <section className="max-w-lg mx-auto p-6 bg-white rounded shadow space-y-4 relative">
-        <h3 className="text-2xl font-semibold text-center">Agregar Libro</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Título */}
-          <div>
-            <Label htmlFor="title">Título</Label>
-            <Input
-              id="title"
-              name="title"
-              onChange={handleChange}
-              onBlur={() => setTouched((t) => ({ ...t, title: true }))}
-              required
-            />
-            {getError("title") && (
-              <span className="text-red-600 text-sm">{getError("title")}</span>
-            )}
-          </div>
-          {/* Descripción */}
-          <div>
-            <Label htmlFor="description">Descripción</Label>
-            <Input
-              id="description"
-              name="description"
-              onChange={handleChange}
-              onBlur={() => setTouched((t) => ({ ...t, description: true }))}
-              required
-            />
-            {getError("description") && (
-              <span className="text-red-600 text-sm">
-                {getError("description")}
-              </span>
-            )}
-          </div>
-          {/* Precio / Descuento */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="price">Precio</Label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.01"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, price: true }))}
-                required
-              />
-              {getError("price") && (
-                <span className="text-red-600 text-sm">
-                  {getError("price")}
-                </span>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="discount">Descuento %</Label>
-              <Input
-                id="discount"
-                name="discount"
-                type="number"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, discount: true }))}
-                required
-              />
-              {getError("discount") && (
-                <span className="text-red-600 text-sm">
-                  {getError("discount")}
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Rating / Best Seller */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="rating">Rating</Label>
-              <Input
-                id="rating"
-                name="rating"
-                type="number"
-                step="0.1"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, rating: true }))}
-                required
-              />
-              {getError("rating") && (
-                <span className="text-red-600 text-sm">
-                  {getError("rating")}
-                </span>
-              )}
-            </div>
 
-            <div className="flex flex-col space-y-2">
-              <Label htmlFor="is_best_seller">Best Seller</Label>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((f) => ({
-                      ...f,
-                      is_best_seller: !f.is_best_seller,
-                    }));
-                  }}
-                  onBlur={() =>
-                    setTouched((t) => ({ ...t, is_best_seller: true }))
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    form.is_best_seller ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                  aria-pressed={form.is_best_seller}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                      form.is_best_seller ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-                <span
-                  className={`text-sm ${
-                    form.is_best_seller
-                      ? "text-blue-600 font-medium"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {form.is_best_seller ? "Sí" : "No"}
-                </span>
-              </div>
-              {getError("is_best_seller") && (
-                <span className="text-red-600 text-sm">
-                  {getError("is_best_seller")}
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Portada */}
-          <div>
-            <Label htmlFor="cover">Portada (PNG/JPG &lt;1 MB)</Label>
-            <Input
-              id="cover"
-              type="file"
-              accept="image/png,image/jpeg"
-              onChange={handleFile}
-              onBlur={() => setTouched((t) => ({ ...t, cover: true }))}
-              required
-            />
+      {/* Contenedor principal - Layout horizontal en desktop */}
+      <div className="max-w-7xl mx-auto mt-16 md:mt-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-center text-[#293241] mb-8">
+          📚 Agregar Nuevo Libro
+        </h1>
 
-            {/* Preview de la imagen */}
-            {coverFile && (
-              <div className="mt-3">
-                <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
-                <div className="relative inline-block">
-                  <img
-                    src={URL.createObjectURL(coverFile)}
-                    alt="Preview de portada"
-                    className="max-w-xs max-h-48 object-contain border rounded-lg shadow-sm"
+        {/* Mensajes de estado */}
+        {submitSuccess && (
+          <div className="mb-6 p-4 bg-green-100 border border-green-500 rounded-lg text-green-700 text-center max-w-2xl mx-auto">
+            ✅ Libro creado exitosamente!
+          </div>
+        )}
+
+        {submitError && (
+          <div className="mb-6 p-4 bg-red-100 border border-red-500 rounded-lg text-red-700 text-center max-w-2xl mx-auto">
+            ❌ {submitError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Layout: 2 columnas en desktop (Formulario | Preview) */}
+          <div className="flex flex-col lg:flex-row gap-8">
+            
+            {/* COLUMNA IZQUIERDA: Campos del formulario */}
+            <div className="flex-1 space-y-6">
+              
+              {/* Fila 1: Info Básica */}
+              <section className="bg-[#FFD9A0] rounded-xl p-6 border-2 border-[#293241] shadow-lg">
+                <h2 className="text-lg font-semibold text-[#293241] mb-4 border-b border-[#293241]/20 pb-2">
+                  Información Básica
+                </h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    id="title"
+                    label="Título"
+                    name="title"
+                    placeholder="Ingresa el título"
+                    onChange={handleChange}
+                    onBlur={() => handleBlur("title")}
+                    error={getError("title")}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCoverFile(null);
-                      // Limpiar el input file
-                      const fileInput = document.getElementById(
-                        "cover"
-                      ) as HTMLInputElement;
-                      if (fileInput) fileInput.value = "";
-                    }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                    title="Eliminar imagen"
-                  >
-                    ×
-                  </button>
+                  <FormField
+                    id="isbn"
+                    label="ISBN"
+                    name="isbn"
+                    placeholder="978-3-16-148410-0"
+                    onChange={handleChange}
+                    onBlur={() => handleBlur("isbn")}
+                    error={getError("isbn")}
+                  />
                 </div>
-              </div>
-            )}
+                <div className="mt-4">
+                  <FormField
+                    id="description"
+                    label="Descripción"
+                    name="description"
+                    placeholder="Describe el contenido del libro..."
+                    minLength={10}
+                    onChange={handleChange}
+                    onBlur={() => handleBlur("description")}
+                    error={getError("description")}
+                  />
+                </div>
+              </section>
 
-            {touched.cover && !coverFile && (
-              <span className="text-red-600 text-sm">
-                * Este campo es obligatorio
-              </span>
-            )}
-          </div>
-          {/* Año / Edición / ISBN */}
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label htmlFor="year">Año</Label>
-              <Input
-                id="year"
-                name="year"
-                type="number"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, year: true }))}
-                required
-              />
-              {getError("year") && (
-                <span className="text-red-600 text-sm">{getError("year")}</span>
-              )}
+              {/* Fila 2: Edición y Clasificación */}
+              <div className="grid md:grid-cols-2 gap-6">
+                
+                {/* Detalles de Edición */}
+                <section className="bg-[#FFD9A0] rounded-xl p-6 border-2 border-[#293241] shadow-lg">
+                  <h2 className="text-lg font-semibold text-[#293241] mb-4 border-b border-[#293241]/20 pb-2">
+                    Edición
+                  </h2>
+                  <div className="space-y-4">
+                    <FormField
+                      id="year"
+                      label="Año"
+                      name="year"
+                      type="number"
+                      min={1900}
+                      max={new Date().getFullYear() + 1}
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("year")}
+                      error={getError("year")}
+                    />
+                    <FormField
+                      id="edition"
+                      label="Edición"
+                      name="edition"
+                      placeholder="Primera Edición"
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("edition")}
+                      error={getError("edition")}
+                    />
+                  </div>
+                </section>
+
+                {/* Precio */}
+                <section className="bg-[#FFD9A0] rounded-xl p-6 border-2 border-[#293241] shadow-lg">
+                  <h2 className="text-lg font-semibold text-[#293241] mb-4 border-b border-[#293241]/20 pb-2">
+                    Precio
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      id="price"
+                      label="USD"
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      min={0.01}
+                      max={10000}
+                      placeholder="0.00"
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("price")}
+                      error={getError("price")}
+                    />
+                    <FormField
+                      id="discount"
+                      label="Descuento %"
+                      name="discount"
+                      type="number"
+                      min={0}
+                      max={100}
+                      placeholder="0"
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("discount")}
+                      error={getError("discount")}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <FormField
+                      id="stock"
+                      label="Stock"
+                      name="stock"
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("stock")}
+                      error={getError("stock")}
+                    />
+                    <FormField
+                      id="sales"
+                      label="Ventas"
+                      name="sales"
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("sales")}
+                      error={getError("sales")}
+                    />
+                  </div>
+                </section>
+              </div>
+
+              {/* Fila 3: Clasificación */}
+              <section className="bg-[#FFD9A0] rounded-xl p-6 border-2 border-[#293241] shadow-lg">
+                <h2 className="text-lg font-semibold text-[#293241] mb-4 border-b border-[#293241]/20 pb-2">
+                  Clasificación
+                </h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <SelectField
+                    id="author_id"
+                    label="Autor"
+                    placeholder="Selecciona"
+                    groupLabel="Autores"
+                    options={authors}
+                    value={form.author_id}
+                    error={getError("author_id")}
+                    onChange={(val) => {
+                      setFieldValue("author_id", val);
+                      handleBlur("author_id");
+                    }}
+                  />
+                  <SelectField
+                    id="genre_id"
+                    label="Género"
+                    placeholder="Selecciona"
+                    groupLabel="Géneros"
+                    options={genres}
+                    value={form.genre_id}
+                    error={getError("genre_id")}
+                    onChange={(val) => {
+                      setFieldValue("genre_id", val);
+                      handleBlur("genre_id");
+                    }}
+                  />
+                  <SelectField
+                    id="publisher_id"
+                    label="Editorial"
+                    placeholder="Selecciona"
+                    groupLabel="Editoriales"
+                    options={publishers}
+                    value={form.publisher_id}
+                    error={getError("publisher_id")}
+                    onChange={(val) => {
+                      setFieldValue("publisher_id", val);
+                      handleBlur("publisher_id");
+                    }}
+                  />
+                </div>
+              </section>
+
+              {/* Fila 4: Rating */}
+              <section className="bg-[#FFD9A0] rounded-xl p-6 border-2 border-[#293241] shadow-lg">
+                <h2 className="text-lg font-semibold text-[#293241] mb-4 border-b border-[#293241]/20 pb-2">
+                  Rating
+                </h2>
+                <div className="flex flex-wrap gap-6 items-end">
+                  <div className="w-32">
+                    <FormField
+                      id="rating"
+                      label="Puntuación (0-5)"
+                      name="rating"
+                      type="number"
+                      step="0.1"
+                      min={0}
+                      max={5}
+                      placeholder="0.0"
+                      onChange={handleChange}
+                      onBlur={() => handleBlur("rating")}
+                      error={getError("rating")}
+                    />
+                  </div>
+                  <ToggleSwitch
+                    id="is_best_seller"
+                    label="¿Best Seller?"
+                    checked={form.is_best_seller}
+                    onChange={(checked) => setFieldValue("is_best_seller", checked)}
+                  />
+                </div>
+              </section>
             </div>
-            <div>
-              <Label htmlFor="edition">Edición</Label>
-              <Input
-                id="edition"
-                name="edition"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, edition: true }))}
-                required
-              />
-              {getError("edition") && (
-                <span className="text-red-600 text-sm">
-                  {getError("edition")}
-                </span>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="isbn">ISBN</Label>
-              <Input
-                id="isbn"
-                name="isbn"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, isbn: true }))}
-                required
-              />
-              {getError("isbn") && (
-                <span className="text-red-600 text-sm">{getError("isbn")}</span>
-              )}
-            </div>
-          </div>
-          {/* Stock / Ventas */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="stock">Stock</Label>
-              <Input
-                id="stock"
-                name="stock"
-                type="number"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, stock: true }))}
-                required
-              />
-              {getError("stock") && (
-                <span className="text-red-600 text-sm">
-                  {getError("stock")}
-                </span>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="sales">Ventas</Label>
-              <Input
-                id="sales"
-                name="sales"
-                type="number"
-                onChange={handleChange}
-                onBlur={() => setTouched((t) => ({ ...t, sales: true }))}
-                required
-              />
-              {getError("sales") && (
-                <span className="text-red-600 text-sm">
-                  {getError("sales")}
-                </span>
-              )}
+
+            {/* COLUMNA DERECHA: Preview de portada y botón submit */}
+            <div className="lg:w-96 space-y-6">
+              
+              {/* Portada */}
+              <section className="bg-[#FFD9A0] rounded-xl p-6 border-2 border-[#293241] shadow-lg sticky top-4">
+                <h2 className="text-lg font-semibold text-[#293241] mb-4 border-b border-[#293241]/20 pb-2">
+                  📷 Portada del Libro
+                </h2>
+                <FileUpload
+                  id="cover"
+                  label="Imagen (PNG/JPG, máx 1MB)"
+                  accept="image/png,image/jpeg"
+                  maxSizeMB={1}
+                  onFileChange={setCoverFile}
+                  error={!coverFile && submitError?.includes("portada") ? "Selecciona una portada" : undefined}
+                />
+
+                {/* Preview ampliado */}
+                {coverFile && (
+                  <div className="mt-4 p-4 bg-white rounded-lg border-2 border-[#293241]">
+                    <img
+                      src={URL.createObjectURL(coverFile)}
+                      alt="Preview de portada"
+                      className="w-full h-auto max-h-80 object-contain rounded-md"
+                    />
+                  </div>
+                )}
+
+                {/* Botón Submit */}
+                <Button
+                  type="submit"
+                  disabled={posting}
+                  className="w-full mt-6 bg-[#EE6C4D] hover:bg-[#d95b3d] text-white font-bold text-lg py-5 
+                    border-2 border-[#293241] shadow-xl transition-all duration-200 
+                    hover:shadow-2xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {posting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                      Guardando...
+                    </span>
+                  ) : (
+                    "📖 Guardar Libro"
+                  )}
+                </Button>
+              </section>
             </div>
           </div>
-          {/* Autor */}
-          <div>
-            <Label htmlFor="author_id">Autor</Label>
-            <Select
-              value={form.author_id ? form.author_id.toString() : ""}
-              onValueChange={(val) => {
-                setForm((f) => ({ ...f, author_id: Number(val) }));
-                setTouched((t) => ({ ...t, author_id: true }));
-              }}
-              required
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona un autor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Autores</SelectLabel>
-                  {(authors ?? []).map((a) => (
-                    <SelectItem key={a.id} value={a.id.toString()}>
-                      {a.name} {a.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {getError("author_id") && (
-              <span className="text-red-600 text-sm">
-                {getError("author_id")}
-              </span>
-            )}
-          </div>
-          {/* Género */}
-          <div>
-            <Label htmlFor="genre_id">Género</Label>
-            <Select
-              value={form.genre_id ? form.genre_id.toString() : ""}
-              onValueChange={(val) => {
-                setForm((f) => ({ ...f, genre_id: Number(val) }));
-                setTouched((t) => ({ ...t, genre_id: true }));
-              }}
-              required
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona un género" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Géneros</SelectLabel>
-                  {(genres ?? []).map((g) => (
-                    <SelectItem key={g.id} value={g.id.toString()}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {getError("genre_id") && (
-              <span className="text-red-600 text-sm">
-                {getError("genre_id")}
-              </span>
-            )}
-          </div>
-          {/* Editorial */}
-          <div>
-            <Label htmlFor="publisher_id">Editorial</Label>
-            <Select
-              value={form.publisher_id ? form.publisher_id.toString() : ""}
-              onValueChange={(val) => {
-                setForm((f) => ({ ...f, publisher_id: Number(val) }));
-                setTouched((t) => ({ ...t, publisher_id: true }));
-              }}
-              required
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona una editorial" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Editoriales</SelectLabel>
-                  {(publishers ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {getError("publisher_id") && (
-              <span className="text-red-600 text-sm">
-                {getError("publisher_id")}
-              </span>
-            )}
-          </div>
-          {/* Botón enviar */}
-          <Button type="submit" disabled={posting}>
-            {posting ? "Enviando…" : "Guardar Libro"}
-          </Button>
-          {error && <p className="mt-2 text-red-600">{error.message}</p>}
         </form>
-      </section>
+      </div>
     </div>
   );
 };

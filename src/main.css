@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* 
+  Paleta de Colores Book Web
+  BG: #FFF8ED
+  Article bg: #FFD9A0  
+  Text: #293241
+  Button: #EE6C4D
+  Extra: #201A17
+*/
+
+@layer theme {
+    :root {
+        /* Colores principales de Book Web */
+        --bookweb-bg: #fff8ed;
+        --bookweb-card: #ffd9a0;
+        --bookweb-text: #293241;
+        --bookweb-button: #ee6c4d;
+        --bookweb-extra: #201a17;
+
+        /* Variantes de botón */
+        --bookweb-button-hover: #d95b3d;
+        --bookweb-button-active: #c44d2f;
+    }
+}
+
+@layer base {
+    body {
+        @apply bg-[#FFF8ED] text-[#293241];
+    }
+}
+
+@layer utilities {
+    .bg-bookweb {
+        background-color: var(--bookweb-bg);
+    }
+
+    .bg-bookweb-card {
+        background-color: var(--bookweb-card);
+    }
+
+    .text-bookweb {
+        color: var(--bookweb-text);
+    }
+
+    .bg-bookweb-button {
+        background-color: var(--bookweb-button);
+    }
+
+    .bg-bookweb-button:hover {
+        background-color: var(--bookweb-button-hover);
+    }
+
+    .bg-bookweb-extra {
+        background-color: var(--bookweb-extra);
+    }
+}
