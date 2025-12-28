@@ -119,7 +119,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: Production
-      url: https://bookweb.vercel.app
+      url: https://book-ronal.vercel.app/
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

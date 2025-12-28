@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { buildUrl } from "../utils/api";
 
-export function useFetch<T = unknown>(path: string, deps: any[] = []): {
+export function useFetch<T = unknown>(path: string, deps: unknown[] = []): {
     data: T | null;
     loading: boolean;
     error: Error | null;
@@ -26,7 +26,7 @@ export function useFetch<T = unknown>(path: string, deps: any[] = []): {
             const json: T = await res.json();
             setData(json);
         } catch (err) {
-            if ((err as any).name !== "AbortError") setError(err as Error);
+            if (err instanceof Error && err.name !== "AbortError") setError(err);
         } finally {
             setLoading(false);
         }
