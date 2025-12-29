@@ -85,7 +85,7 @@ export default function BookList() {
       role="main"
     >
       {/* Screen reader only - h1 principal */}
-      <h1 className="sr-only">Book Web - Catálogo de Libros Online</h1>
+      <h1 className="sr-only">Catálogo de Libros Online</h1>
 
       <header className="flex flex-col items-center mb-12" role="banner">
         <nav 
@@ -97,7 +97,7 @@ export default function BookList() {
               className="bg-[#EE6C4D] hover:bg-[#d95b3d] text-white border-2 border-[#293241] shadow-md transition-colors"
               aria-label="Ir a la página de insertar nuevo libro"
             >
-              Insertar Libro
+              Agregar Libro
             </Button>
           </Link>
           <BookSearch 
